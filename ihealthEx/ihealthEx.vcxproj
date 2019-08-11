@@ -71,8 +71,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\ihealthexFORnewproject\ATI\ATIDAQ;D:\ihealthexFORnewproject\Library;D:\ihealthexFORnewproject\NI\include;D:\ihealthexFORnewproject\eigen\eigen3_3_4;D:\ihealthexFORnewproject\DuiLib;D:\ihealthexFORnewproject\APS\include;$(SolutionDir)DuiLib;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\ihealthexFORnewproject\Library;D:\ihealthexFORnewproject\NI\lib;D:\ihealthexFORnewproject\Lib;D:\ihealthexFORnewproject\APS\lib;$(SolutionDir)Lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>D:\ihealthexWithSixdimforce\ATI\ATIDAQ;D:\ihealthexWithSixdimforce\Library;D:\ihealthexWithSixdimforce\NI\include;D:\ihealthexWithSixdimforce\eigen\eigen3_3_4;D:\ihealthexWithSixdimforce\DuiLib;D:\ihealthexWithSixdimforce\APS\include;$(SolutionDir)DuiLib;$(IncludePath)</IncludePath>
+    <LibraryPath>D:\ihealthexWithSixdimforce\Library;D:\ihealthexWithSixdimforce\NI\lib;D:\ihealthexWithSixdimforce\Lib;D:\ihealthexWithSixdimforce\APS\lib;$(SolutionDir)Lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
