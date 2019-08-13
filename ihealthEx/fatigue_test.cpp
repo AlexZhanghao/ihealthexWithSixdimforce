@@ -157,10 +157,6 @@ void FatigueTest::timerAcquisit() {
 	double distData[6] = { 0 };
 	double filtedData[6] = { 0 };
 
-	m_pDataAcquisition->AcquisiteTorqueData(torquedata);
-	elbow_offset = 2*m_pDataAcquisition->torque_data[0];
-	shoulder_offset = 2*m_pDataAcquisition->torque_data[1];
-
 	while (is_testing == true) {
 		//readings的值单位就是力的单位N
 		mFTWrapper->GetForcesAndTorques(readings);

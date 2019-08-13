@@ -26,7 +26,7 @@ const double d5 = 0.174;
 const double r5 = 0.074;
 const double dy_2 = 0.087;
 const double dz_2 = 0.188;
-double sixdim_shoulder = 0.03;
+const double sixdim_shoulder = 0.03;
 
 const double InitAngle[5] = {
 	0, 0, 0, 0, 15
