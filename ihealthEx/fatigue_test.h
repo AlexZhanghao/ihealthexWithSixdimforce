@@ -22,15 +22,17 @@ public:
 	void AbsoluteMove();
 	void ActMove();
 	//国产六维力
-	void StartMove();
+	void SixdimForceAcquisit();
 	//ATI
-	void timerAcquisit();
+	void ATIAcquisit();
 	//压力传感器采集
 	void PressureSensorAcquisit();
 	//力矩传感器采集
 	void TorqueAcquisit();
 	//力矩传感器运动
 	void TorqueMove();
+	//疲劳测试线程,这个线程要配合被动运动一起使用
+	void FatigueTestAcquisit();
 	void PositionReset();
 	void StopMove();
 	bool IsErrorHappened();
@@ -49,6 +51,8 @@ public:
 	void ExportMomentData();
 	//输出六维力数据到txt
 	void ExportSixDimensionData();
+	//输出疲劳测试结果
+	void ExportFatigueData();
 
 public:
 	HWND m_hWnd;
@@ -67,6 +71,7 @@ public:
 	bool m_stop = true;
 	bool torque_collecting;
 	bool torque_moving;
+	bool is_fatigue;
 
 	double two_arm_offset[8];
 
@@ -114,8 +119,9 @@ private:
 	sensorprocess m_psensorprocess;
 	boundaryDetection m_boundarydetect;
 	HANDLE test_thread = nullptr;
-	HANDLE ATI_thread = nullptr;
+	HANDLE Sixdim_thread = nullptr;
 	HANDLE acquisition_thread = nullptr;
+	HANDLE fatiguetest_thread = nullptr;
 
 	double m_shoulder_vel;
 	double m_elbow_vel;

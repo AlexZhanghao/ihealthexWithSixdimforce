@@ -186,10 +186,10 @@ void ControlCard::VelMove(short AxisId, double Vel) {
 	}
 
 	if (Vel > 0) {
-		APS_vel(AxisId, 1, afterConvert, 0);
+		APS_vel(AxisId, 0, afterConvert, 0);
 	}
 	else {
-		APS_vel(AxisId, 0, afterConvert, 0);
+		APS_vel(AxisId, 1, afterConvert, 0);
 	}
 }
 

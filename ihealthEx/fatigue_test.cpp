@@ -24,21 +24,23 @@ const double shoulder_moment_variance = 4.3769 / 10000;
 const double elbow_moment_variance = 1.2576 / 10000;
 const double shoulder_torque_variance = 1.4634 / 100000;
 const double elbow_torque_variance = 2.2896 / 100000;
-const double shoulder_pos = -15;
-const double elbow_pos = -15;
+const double shoulder_pos = 40;
+const double elbow_pos = 40;
 const double sixdim = 0.015;
 
 	
 vector<double> force_collection[4];
 vector<double> torque_collection[2];
 vector<double> moment_collection[2];
+vector<double> fatigue_collection[6];
 vector<double> sixdimension_collection;
 
 double FatigueTest::six_dimforce[6] { 0 };
 
 unsigned int __stdcall TestThread(PVOID pParam);
-unsigned int __stdcall ATIThread(PVOID pParam);
+unsigned int __stdcall SixdimThread(PVOID pParam);
 unsigned int __stdcall AcquisitionThread(PVOID pParam);
+unsigned int __stdcall FatigueTestThread(PVOID pParam);
 
 FatigueTest::FatigueTest() {
 	mFTWrapper = new FTWrapper();
@@ -81,21 +83,22 @@ bool FatigueTest::IsInitialed() {
 }
 
 void FatigueTest::StartTest() {
+
 	//ATI六维力传感器使用
-	mFTWrapper->LoadCalFile();
-	mFTWrapper->BiasCurrentLoad(true);
-	mFTWrapper->setFUnit();
-	mFTWrapper->setTUnit();
+	//mFTWrapper->LoadCalFile();
+	//mFTWrapper->BiasCurrentLoad(true);
+	//mFTWrapper->setFUnit();
+	//mFTWrapper->setTUnit();
 
 	is_testing = true;
 	torque_collecting = true;
 
 	//主动运动线程
 	test_thread = (HANDLE)_beginthreadex(NULL, 0, TestThread, this, 0, NULL);
-	//ATI线程启动，这里要小心线程冲突
-	ATI_thread = (HANDLE)_beginthreadex(NULL, 0, ATIThread, this, 0, NULL);
+	//六维力线程启动，这里要小心线程冲突
+	Sixdim_thread = (HANDLE)_beginthreadex(NULL, 0, SixdimThread, this, 0, NULL);
 	//传感器开启线程
-	//acquisition_thread= (HANDLE)_beginthreadex(NULL, 0, AcquisitionThread, this, 0, NULL);
+	//acquisition_thread = (HANDLE)_beginthreadex(NULL, 0, AcquisitionThread, this, 0, NULL);
 }
 
 void FatigueTest::StartAbsoulteMove() {
@@ -123,10 +126,10 @@ void FatigueTest::StartActiveMove() {
 
 	//主动运动线程
 	test_thread = (HANDLE)_beginthreadex(NULL, 0, TestThread, this, 0, NULL);
+	//六维力线程启动，这里要小心线程冲突
+	Sixdim_thread = (HANDLE)_beginthreadex(NULL, 0, SixdimThread, this, 0, NULL);
 	////传感器开启线程
 	//acquisition_thread = (HANDLE)_beginthreadex(NULL, 0, AcquisitionThread, this, 0, NULL);
-	//ATI线程启动，这里要小心线程冲突
-    ATI_thread = (HANDLE)_beginthreadex(NULL, 0, ATIThread, this, 0, NULL);
 }
 
 void FatigueTest::AbsoluteMove() {
@@ -146,7 +149,7 @@ void FatigueTest::ActMove() {
 	m_pControlCard->VelocityMove(ELBOW_AXIS_ID, Ud_Arm);
 }
 
-void FatigueTest::timerAcquisit() {
+void FatigueTest::ATIAcquisit() {
 	if (!IsInitialed()) { 
 		return;
 	}
@@ -221,7 +224,7 @@ void FatigueTest::SixDimensionForceRotation(double sixdimensionforce[6]) {
 	}
 }
 
-void FatigueTest::StartMove() {
+void FatigueTest::SixdimForceAcquisit() {
 	if (!IsInitialed()) {
 		return;
 	}
@@ -229,6 +232,21 @@ void FatigueTest::StartMove() {
 	double readings[6];
 	double distData[6] = { 0 };
 	double filtedData[6] = { 0 };
+	double sub_bias[6] = { 0 };
+
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	double six_dimension_offset_[6]{ 0 };
+	for (int i = 0; i < 10; ++i) {
+		m_pDataAcquisition->AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		six_dimension_offset_[i] = sum[i] / 10;
+	}
 
 	while (true) {
 		if (!in_test_move) {
@@ -237,13 +255,24 @@ void FatigueTest::StartMove() {
 
 		m_pDataAcquisition->AcquisiteSixDemensionData(readings);
 
+		// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
 		for (int i = 0; i < 6; ++i) {
-			readings[i] = -readings[i];
+			sub_bias[i] = readings[i] - six_dimension_offset_[i];
+		}
+		sub_bias[2] = -sub_bias[2];
+		sub_bias[5] = -sub_bias[5];
+
+		for (int i = 0; i < 6; ++i) {
+			six_dimforce[i] = sub_bias[i];
 		}
 
-		Raw2Trans(readings, distData);
-		Trans2Filter(distData, filtedData);
-		FiltedVolt2Vel(filtedData);
+		//for (int i = 0; i < 6; ++i) {
+		//	readings[i] = -readings[i];
+		//}
+
+		//Raw2Trans(readings, distData);
+		//Trans2Filter(distData, filtedData);
+		//FiltedVolt2Vel(filtedData);
 
 
 
@@ -260,6 +289,7 @@ void FatigueTest::StopMove() {
 	in_test_move = false;
 	is_testing = false;
 	is_moving = false;
+	is_fatigue = false;
 	torque_collecting = false;
 	torque_moving = false;
 	//这里不放开离合的原因是为了防止中间位置松开离合导致手臂迅速下坠
@@ -274,12 +304,20 @@ void FatigueTest::PositionReset() {
 	m_pControlCard->PositionReset();
 }
 
-void FatigueTest::AcquisiteData() {
+void FatigueTest::FatigueTestAcquisit() {
 	double torquedata[2]{ 0 };
+	double angle[2]{ 0 };
 
 	m_pDataAcquisition->AcquisiteTorqueData(torquedata);
 	m_pDataAcquisition->AcquisitePullSensorData();
-	m_pControlCard->GetEncoderData();
+	m_pControlCard->GetEncoderData(angle);
+
+	fatigue_collection[0].push_back(angle[0]);
+	fatigue_collection[1].push_back(angle[1]);
+	fatigue_collection[2].push_back(m_pDataAcquisition->pull_sensor_data[0]);
+	fatigue_collection[3].push_back(m_pDataAcquisition->pull_sensor_data[1]);
+	fatigue_collection[4].push_back(m_pDataAcquisition->pull_sensor_data[2]);
+	fatigue_collection[5].push_back(m_pDataAcquisition->pull_sensor_data[3]);
 }
 
 //序号 肘部编码器 肩部编码器 拉力1 拉力2 拉力3 拉力4 肘部力矩 肩部力矩 "\n";
@@ -351,14 +389,16 @@ unsigned int __stdcall TestThread(PVOID pParam) {
 	mTest->PressureSensorAcquisit();
 }
 
-unsigned int __stdcall ATIThread(PVOID pParam) {
-	FatigueTest *aTest = static_cast<FatigueTest *>(pParam);
-	if (!aTest->IsInitialed()) {
+unsigned int __stdcall SixdimThread(PVOID pParam) {
+	FatigueTest *sTest = static_cast<FatigueTest *>(pParam);
+	if (!sTest->IsInitialed()) {
 		return 1;
 	}
 
-	//ATI六维力
-	aTest->timerAcquisit();
+	////ATI六维力
+	//sTest->ATIAcquisit();
+	//国产六维力
+	sTest->SixdimForceAcquisit();
 }
 
 unsigned int __stdcall AcquisitionThread(PVOID pParam) {
@@ -378,6 +418,20 @@ unsigned int __stdcall AcquisitionThread(PVOID pParam) {
 	//}
 
 }
+
+unsigned int __stdcall FatigueTestThread(PVOID pParam) {
+	FatigueTest *fTest = static_cast<FatigueTest *>(pParam);
+	if (!fTest->IsInitialed()) {
+		return 1;
+	}
+
+	while (fTest->is_fatigue) {
+		fTest->FatigueTestAcquisit();
+	}
+
+	fTest->ExportFatigueData();
+}
+
 
 void FatigueTest::Raw2Trans(double RAWData[6], double DistData[6]) {
 	//这一段就是为了把力从六维力传感器上传到手柄上，这里的A就是总的一个转换矩阵。
@@ -949,4 +1003,15 @@ void FatigueTest::ExportSixDimensionData() {
 		dataFile4 << sixdimension_collection[i] << endl;
 	}
 	dataFile4.close();
+}
+
+void FatigueTest::ExportFatigueData() {
+	ofstream dataFile1;
+	dataFile1.open("pulldata.txt", ofstream::app);
+	for (int i = 0; i < fatigue_collection[0].size(); ++i) {
+		dataFile1 << fatigue_collection[0][i] << "        " << fatigue_collection[1][i]
+			<< "        " << fatigue_collection[2][i] << "        " << fatigue_collection[3][i] << "        " << fatigue_collection[4][i]
+			<< "        " << fatigue_collection[5][i] << endl;
+	}
+	dataFile1.close();
 }
